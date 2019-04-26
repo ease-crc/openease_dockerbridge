@@ -37,12 +37,6 @@ class DockerBridge(pyjsonrpc.HttpRequestHandler):
 
         dockermanager.start_user_container(application_image, user_container_name, ros_distribution)
         timeout.setTimeout(user_container_name, 600)
-    
-    @pyjsonrpc.rpcmethod
-    def start_webapp_container(self, webapp_image):
-        check_imagename(webapp_image, 'webapp_image')
-
-        dockermanager.start_webapp_container(webapp_image)
 
     @pyjsonrpc.rpcmethod
     def stop_container(self, user_container_name):
@@ -64,14 +58,6 @@ class DockerBridge(pyjsonrpc.HttpRequestHandler):
         check_containername(user_container_name, 'user_container_name')
 
         return dockermanager.get_container_ip(user_container_name)
-
-    @pyjsonrpc.rpcmethod
-    def get_application_image_names(self):
-        return dockermanager.get_application_image_names()
-
-    @pyjsonrpc.rpcmethod
-    def get_webapp_image_names(self):
-        return dockermanager.get_webapp_image_names()
     
     @pyjsonrpc.rpcmethod
     def get_container_env(self, user_container_name, key):
