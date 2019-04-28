@@ -53,12 +53,9 @@ class DockerManager(object):
             # Read links and volumes from webapp_container ENV
             inspect = self.__client.inspect_image(application_image)
             env = dict(map(lambda x: x.split("="), inspect['Config']['Env']))
-            # FIXME links and volumes better handling
-            #links = map(lambda x: tuple(x.split(':')), env['DOCKER_LINKS'].split(' '))
-            #volumes = env['DOCKER_VOLUMES'].split(' ')
-            #volumes.append(data_container_name(user_container_name))
-            links=[]
-            volumes=[]
+            links=[] # TODO 'mongo'
+            volumes=[] # TODO episode_data:ro mesh_data
+            volumes.append(data_container_name(user_container_name))
 
             sysout("Starting user container " + user_container_name)
             self.__client.start(user_container_name,
@@ -75,8 +72,7 @@ class DockerManager(object):
             user_data_container = data_container_name(container_name)
             if self.__get_container(user_data_container, all_containers) is None:
                 sysout("Creating "+user_data_container+" container.")
-                # FIXME: do not use knowrob/user_data
-                # FIXME: /etc/rosauth volume
+                # TODO: do not use knowrob/user_data
                 self.__client.create_container('knowrob/user_data', detach=True, tty=True, name=user_data_container,
                                                volumes=['/etc/rosauth'], entrypoint='true')
                 self.__client.start(user_data_container)
