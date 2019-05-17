@@ -30,6 +30,8 @@ class DockerManager(object):
             sysout("Creating user container " + user_container_name)
             env = {"VIRTUAL_HOST": user_container_name,
                    "VIRTUAL_PORT": '9090',
+                   "MONGO_PORT_27017_TCP_ADDR": 'mongo',
+                   "MONGO_PORT_27017_TCP_PORT": '27017',
                    "ROS_PACKAGE_PATH": ":".join([
                        "/home/ros/src",
                        "/opt/ros/"+ros_distribution+"/share",
@@ -45,23 +47,32 @@ class DockerManager(object):
             else:
                 mem_limit = 0
                 cpu_shares = 1024  # Default value
+            # TODO link meshes volume
+            # TODO read host path from env
+            volumes= ['/episodes']
+            volume_bindings={
+                '/episodes': {'bind': '/episodes', 'mode': 'ro'}
+            }
+            host_config = self.__client.create_host_config(
+                binds=volume_bindings
+            )
             self.__client.create_container(application_image, detach=True, tty=True, environment=env,
                                            name=user_container_name, mem_limit=mem_limit, cpu_shares=cpu_shares,
                                            memswap_limit=mem_limit*4,
+                                           volumes=volumes, host_config=host_config,
                                            entrypoint=['/opt/ros/'+ros_distribution+'/bin/roslaunch', 'knowrob_roslog_launch', 'knowrob_ease.launch'])
-                
+            
             # Read links and volumes from webapp_container ENV
             inspect = self.__client.inspect_image(application_image)
             env = dict(map(lambda x: x.split("="), inspect['Config']['Env']))
-            links=[] # TODO 'mongo'
-            volumes=[] # TODO episode_data:ro mesh_data
-            volumes.append(data_container_name(user_container_name))
+            links=[('mongo','mongo')]
+            volumes_from = [data_container_name(user_container_name)]
 
             sysout("Starting user container " + user_container_name)
             self.__client.start(user_container_name,
                                 port_bindings={9090: ('127.0.0.1',)},
                                 links=links,
-                                volumes_from=volumes)
+                                volumes_from=volumes_from)
         except Exception, e:
             sysout("Error in start_user_container: " + str(e.message))
             traceback.print_exc()
