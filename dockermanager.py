@@ -38,6 +38,7 @@ class DockerManager(object):
                        "/opt/ros/"+ros_distribution+"/stacks",
                        user_home_dir
             ])}
+            links=[]
             if limit_resources:
                 mem_limit = 256 * 1024 * 1024
 
@@ -47,8 +48,16 @@ class DockerManager(object):
             else:
                 mem_limit = 0
                 cpu_shares = 1024  # Default value
-            # TODO link meshes volume
-            # TODO read host path from env
+
+            # link to mongo container
+            # TODO: at the moment the mongo container uses network mode *bridge*,
+            #       use container specific network instead. but seems we need to switch
+            #       to more recent version of dockerpy before.
+            env['MONGO_PORT_27017_TCP_ADDR'] = 'mongo'
+            env['MONGO_PORT_27017_TCP_PORT'] = '27017'
+            links.append(('mongo','mongo'))
+
+            # FIXME read host path from env
             volumes= ['/episodes']
             volume_bindings={
                 '/episodes': {'bind': '/episodes', 'mode': 'ro'}
@@ -65,7 +74,6 @@ class DockerManager(object):
             # Read links and volumes from webapp_container ENV
             inspect = self.__client.inspect_image(application_image)
             env = dict(map(lambda x: x.split("="), inspect['Config']['Env']))
-            links=[('mongo','mongo')]
             volumes_from = [data_container_name(user_container_name)]
 
             sysout("Starting user container " + user_container_name)
@@ -83,7 +91,6 @@ class DockerManager(object):
             user_data_container = data_container_name(container_name)
             if self.__get_container(user_data_container, all_containers) is None:
                 sysout("Creating "+user_data_container+" container.")
-                # TODO: do not use knowrob/user_data
                 self.__client.create_container('knowrob/user_data', detach=True, tty=True, name=user_data_container,
                                                volumes=['/etc/rosauth'], entrypoint='true')
                 self.__client.start(user_data_container)
