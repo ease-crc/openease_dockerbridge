@@ -57,10 +57,9 @@ class DockerManager(object):
             env['MONGO_PORT_27017_TCP_PORT'] = '27017'
             links.append(('mongo','mongo'))
 
-            # FIXME read host path from env
             volumes= ['/episodes']
             volume_bindings={
-                '/episodes': {'bind': '/episodes', 'mode': 'ro'}
+                os.environ['OPENEASE_EPISODE_DATA']: {'bind': '/episodes', 'mode': 'ro'}
             }
             host_config = self.__client.create_host_config(
                 binds=volume_bindings
