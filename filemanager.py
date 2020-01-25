@@ -49,7 +49,7 @@ class FileManager(object):
     based) solution (preferably some lightweight HTTP REST interface) other than piping stdin/out and using cp and find.
     """
     def __init__(self):
-        self.docker = docker.Client(base_url='unix://var/run/docker.sock', version='1.18', timeout=10)
+        self.docker = docker.Client(base_url='unix://var/run/docker.sock', version='1.22', timeout=10)
 
     def fromcontainer(self, container, sourcefile, target):
         """

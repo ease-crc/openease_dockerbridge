@@ -17,7 +17,14 @@ class DockerManager(object):
     application_images = None
 
     def __init__(self):
-        self.__client = docker.Client(base_url='unix://var/run/docker.sock', version='1.18', timeout=60)
+        self.__client = docker.Client(base_url='unix://var/run/docker.sock', version='1.22', timeout=60)
+        self.__client.pull('knowrob/user_data')
+        self.__client.pull('openease/kinetic-knowrob-daemon')
+        # user container are auto-connected to the same networks
+        # as the dockerbridge container (for now)
+        inspect = self.__client.inspect_container('dockerbridge')
+        networks = inspect['NetworkSettings']['Networks']
+        self.network_names = networks.keys()
 
     def start_user_container(self, application_image, user_container_name, ros_distribution, limit_resources=True):
         try:
@@ -49,36 +56,30 @@ class DockerManager(object):
                 mem_limit = 0
                 cpu_shares = 1024  # Default value
 
-            # link to mongo container
-            # TODO: at the moment the mongo container uses network mode *bridge*,
-            #       use container specific network instead. but seems we need to switch
-            #       to more recent version of dockerpy before.
-            env['MONGO_PORT_27017_TCP_ADDR'] = 'mongo'
-            env['MONGO_PORT_27017_TCP_PORT'] = '27017'
-            links.append(('mongo','mongo'))
-
             volumes= ['/episodes']
             volume_bindings={
                 os.environ['OPENEASE_EPISODE_DATA']: {'bind': '/episodes', 'mode': 'ro'}
             }
             host_config = self.__client.create_host_config(
-                binds=volume_bindings
+                binds=volume_bindings,
+                mem_limit=mem_limit, 
+                memswap_limit=mem_limit*4,
             )
             self.__client.create_container(application_image, detach=True, tty=True, environment=env,
-                                           name=user_container_name, mem_limit=mem_limit, cpu_shares=cpu_shares,
-                                           memswap_limit=mem_limit*4,
+                                           name=user_container_name, cpu_shares=cpu_shares,
                                            volumes=volumes, host_config=host_config,
                                            entrypoint=['/opt/ros/'+ros_distribution+'/bin/roslaunch', 'knowrob_roslog_launch', 'knowrob_ease.launch'])
+            for network_name in self.network_names:
+                self.__client.connect_container_to_network(user_container_name, network_name)
             
             # Read links and volumes from webapp_container ENV
             inspect = self.__client.inspect_image(application_image)
             env = dict(map(lambda x: x.split("="), inspect['Config']['Env']))
             volumes_from = [data_container_name(user_container_name)]
-
+            
             sysout("Starting user container " + user_container_name)
             self.__client.start(user_container_name,
                                 port_bindings={9090: ('127.0.0.1',)},
-                                links=links,
                                 volumes_from=volumes_from)
         except Exception, e:
             sysout("Error in start_user_container: " + str(e.message))
