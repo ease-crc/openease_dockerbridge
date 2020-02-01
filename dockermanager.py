@@ -7,143 +7,169 @@ import traceback
 
 import docker
 from docker.errors import *
-from filemanager import data_container_name, absolute_userpath
+from filemanager import data_container_name, knowrob_container_name, mongo_container_name, user_network_name, absolute_userpath
 
 from utils import sysout
 
+USER_DATA_IMAGE='knowrob/user_data'
+# TODO: make configurable
+KNOWROB_IMAGE_PREFIX='openease'
+NEEM_DIR=os.environ['NEEM_DIR']
 
 class DockerManager(object):
-    webapp_images = None
-    application_images = None
-
     def __init__(self):
-        self.__client = docker.Client(base_url='unix://var/run/docker.sock', version='1.22', timeout=60)
-        self.__client.pull('knowrob/user_data')
-        self.__client.pull('openease/kinetic-knowrob-daemon')
-        # user container are auto-connected to the same networks
-        # as the dockerbridge container (for now)
-        inspect = self.__client.inspect_container('dockerbridge')
-        networks = inspect['NetworkSettings']['Networks']
-        self.network_names = networks.keys()
-
-    def start_user_container(self, application_image, user_container_name, ros_distribution, limit_resources=True):
+        self.__client = docker.Client(base_url='unix://var/run/docker.sock',
+                                      version='1.22',
+                                      timeout=60)
+        self.__client.pull(USER_DATA_IMAGE)
+    
+    def start_user_container(self, user_name,
+                             neem_group, neem_name, neem_version,
+                             knowrob_image, knowrob_version):
         try:
             all_containers = self.__client.containers(all=True)
             # Stop user container if running
-            self.__stop_container__(user_container_name, all_containers)
-
-            user_home_dir = absolute_userpath('')
-
-            sysout("Creating user container " + user_container_name)
-            env = {"VIRTUAL_HOST": user_container_name,
-                   "VIRTUAL_PORT": '9090',
-                   "MONGO_PORT_27017_TCP_ADDR": 'mongo',
-                   "MONGO_PORT_27017_TCP_PORT": '27017',
-                   "ROS_PACKAGE_PATH": ":".join([
-                       "/home/ros/src",
-                       "/opt/ros/"+ros_distribution+"/share",
-                       "/opt/ros/"+ros_distribution+"/stacks",
-                       user_home_dir
-            ])}
-            links=[]
-            if limit_resources:
-                mem_limit = 256 * 1024 * 1024
-
-                # default is 1024, meaning that 4 of these containers will receive the same cpu time as one default
-                # container. decrease this further if you want to increase the maximum amount of users on the host.
-                cpu_shares = 256
-            else:
-                mem_limit = 0
-                cpu_shares = 1024  # Default value
-
-            volumes= ['/episodes']
-            volume_bindings={
-                os.environ['OPENEASE_EPISODE_DATA']: {'bind': '/episodes', 'mode': 'ro'}
-            }
-            host_config = self.__client.create_host_config(
-                binds=volume_bindings,
-                mem_limit=mem_limit, 
-                memswap_limit=mem_limit*4,
-            )
-            self.__client.create_container(application_image, detach=True, tty=True, environment=env,
-                                           name=user_container_name, cpu_shares=cpu_shares,
-                                           volumes=volumes, host_config=host_config,
-                                           entrypoint=['/opt/ros/'+ros_distribution+'/bin/roslaunch', 'knowrob_roslog_launch', 'knowrob_ease.launch'])
-            for network_name in self.network_names:
-                self.__client.connect_container_to_network(user_container_name, network_name)
-            
-            # Read links and volumes from webapp_container ENV
-            inspect = self.__client.inspect_image(application_image)
-            env = dict(map(lambda x: x.split("="), inspect['Config']['Env']))
-            volumes_from = [data_container_name(user_container_name)]
-            
-            sysout("Starting user container " + user_container_name)
-            self.__client.start(user_container_name,
-                                port_bindings={9090: ('127.0.0.1',)},
-                                volumes_from=volumes_from)
+            self.__stop_user_container__(user_name, all_containers)
+            # make sure the image is locally available
+            # TODO: manage knowrob images, delete old ones that were not used for a while
+            self.__client.pull(KNOWROB_IMAGE_PREFIX+'/'+knowrob_image,
+                               tag=knowrob_version)
+            # Host directory where the NEEM is located.
+            # This directory is mounted as volume into the dockerbridge container.
+            neem_dir_local = neem_group+'/'+neem_name+':'+neem_version
+            neem_dir = os.path.join(NEEM_DIR, neem_dir_local)
+            # create user container
+            self.__create_user_data_container__(user_name,all_containers)
+            self.__create_user_network__(user_name)
+            self.__create_mongo_container__(user_name,neem_dir)
+            self.__create_knowrob_container__(user_name,neem_dir)
         except Exception, e:
             sysout("Error in start_user_container: " + str(e.message))
             traceback.print_exc()
 
-    def create_user_data_container(self, container_name):
+    def create_user_data_container(self, user_name):
         try:
             all_containers = self.__client.containers(all=True)
-            user_data_container = data_container_name(container_name)
-            if self.__get_container(user_data_container, all_containers) is None:
-                sysout("Creating "+user_data_container+" container.")
-                self.__client.create_container('knowrob/user_data', detach=True, tty=True, name=user_data_container,
-                                               volumes=['/etc/rosauth'], entrypoint='true')
-                self.__client.start(user_data_container)
-                return True
+            self.__create_user_data_container__(user_name, all_containers)
+            return True
         except (APIError, DockerException), e:
             sysout("Error in create_user_data_container: " + str(e.message))
             traceback.print_exc()
         return False
 
-    def stop_container(self, container_name):
+    def __create_user_network__(self, user_name):
+        network_name = user_network_name(user_name)
+        if self.__client.networks(names=[network_name]) is []:
+            self.__client.create_network(name=network_name)
+
+    def __create_user_data_container__(self, user_name, all_containers):
+        user_data_container = data_container_name(user_name)
+        if self.__get_container(user_data_container, all_containers) is None:
+            sysout("Creating "+user_data_container+" container.")
+            self.__client.create_container('knowrob/user_data',
+                                           detach=True,
+                                           tty=True,
+                                           name=user_data_container,
+                                           volumes=['/etc/rosauth'],
+                                           entrypoint='true')
+            # TODO: start needed for volume? will exit right away, or not?
+            self.__client.start(user_data_container)
+
+    def __create_mongo_container__(self, user_name, neem_dir):
+        container_name = mongo_container_name(user_name)
+        network_name = user_network_name(user_name)
+        sysout("Creating "+container_name+" container.")
+        #
+        host_config = self.__client.create_host_config(
+            binds={ os.path.join(neem_dir,'mongo'): {'bind': '/data/db'} }
+        )
+        self.__client.create_container('mongo',
+                                       detach=True,
+                                       tty=True,
+                                       name=container_name,
+                                       host_config=host_config,
+                                       volumes=['/data/db'])
+        self.__client.connect_container_to_network(container_name, network_name)
+        self.__client.start(container_name)
+
+    def __create_knowrob_container__(self, user_name, neem_dir):
+        knowrob_container = knowrob_container_name(user_name)
+        mongo_container = mongo_container_name(user_name)
+        network_name = user_network_name(user_name)
+        user_home_dir = absolute_userpath('')
+
+        sysout("Creating user container " + knowrob_container)
+        env = {"VIRTUAL_HOST": knowrob_container,
+               "VIRTUAL_PORT": '9090',
+               "ROS_PACKAGE_PATH": ":".join([
+                   "/home/ros/src",
+                   #"/opt/ros/"+ros_distribution+"/share",
+                   #"/opt/ros/"+ros_distribution+"/stacks",
+                   user_home_dir
+                ])
+        }
+        # TODO: make this configurable based on the roles of the user
+        limit_resources = True
+        if limit_resources:
+            mem_limit = 256 * 1024 * 1024
+            # default is 1024, meaning that 4 of these containers will receive the same cpu time as one default
+            # container. decrease this further if you want to increase the maximum amount of users on the host.
+            cpu_shares = 256
+        else:
+            mem_limit = 0
+            cpu_shares = 1024  # Default value
+        host_config = self.__client.create_host_config(
+            binds={ neem_dir: {'bind': '/neem', 'mode': 'ro'} },
+            mem_limit=mem_limit, 
+            memswap_limit=mem_limit*4,
+        )
+        self.__client.create_container(application_image,
+                                       detach=True,
+                                       tty=True,
+                                       environment=env,
+                                       name=knowrob_container,
+                                       cpu_shares=cpu_shares,
+                                       volumes=['/neem'],
+                                       #entrypoint=['/opt/ros/'+ros_distribution+'/bin/roslaunch', 'knowrob_roslog_launch', 'knowrob_ease.launch'],
+                                       host_config=host_config)
+        self.__client.connect_container_to_network(knowrob_container, network_name)
+        ##
+        sysout("Starting user container " + knowrob_container)
+        volumes_from = [data_container_name(knowrob_container)]
+        self.__client.start(knowrob_container,
+                            port_bindings={9090: ('127.0.0.1',)},
+                            volumes_from=volumes_from)
+
+    def stop_user_container(self, user_name):
         try:
-            self.__stop_container__(container_name, self.__client.containers(all=True))
+            self.__stop_user_container__(user_name, self.__client.containers(all=True))
         except (APIError, DockerException), e:
             sysout("Error in stop_container: " + str(e.message))
+    
+    def __stop_user_container__(self, user_name, all_containers):
+        self.__stop_container__(knowrob_container_name(user_name), all_containers)
+        self.__stop_container__(mongo_container_name(user_name), all_containers)
+        # TODO: destroy user network
 
     def __stop_container__(self, container_name, all_containers):
         # check if containers exist:
         if self.__get_container(container_name, all_containers) is not None:
             sysout("Stopping container " + container_name + "...")
             self.__client.stop(container_name, timeout=5)
-
             sysout("Removing container " + container_name + "...")
             self.__client.remove_container(container_name)
 
-    def get_container_ip(self, container_name):
+    def get_container_ip(self, user_name):
         try:
-            inspect = self.__client.inspect_container(container_name)
+            inspect = self.__client.inspect_container(knowrob_container_name(user_name))
             return inspect['NetworkSettings']['IPAddress']
         except (APIError, DockerException), e:
             sysout("Error in get_container_ip: " + str(e.message) + "\n")
             return 'error'
-    
-    def get_named_images(self, all_images):
-        named_images = []
-        for img in all_images:
-            tags = img['RepoTags']
-            if len(tags)==0: continue
-            tag0 = tags[0]
-            if tag0 == '<none>:<none>': continue
-            named_images.append(tag0.split(':')[0])
-        return named_images
 
-    def container_started(self, container_name, base_image_name=None):
+    def container_started(self, user_name, base_image_name=None):
         try:
-            cont = self.__get_container(container_name, self.__client.containers())
-            if base_image_name is None or cont is None:
-                return cont is not None
-            
-            inspect = self.__client.inspect_container(container_name)
-            image = inspect['Config']['Image']
-            
-            return image == base_image_name
-        
+            return self.__get_container(knowrob_container_name(user_name), self.__client.containers()) is not None
         except (APIError, DockerException), e:
             sysout("Error in container_exists: " + str(e.message))
             return False
