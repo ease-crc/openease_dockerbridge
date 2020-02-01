@@ -10,12 +10,29 @@ import dockerio
 __author__ = 'mhorst@cs.uni-bremen.de'
 
 
-def data_container_name(user_container_name):
+def data_container_name(user_name):
     """
-    Return the data container name for the given user_container_name
+    Return the data container name for the given user_name
     """
-    return 'data_'+user_container_name
+    return user_name+'_data'
 
+def mongo_container_name(user_name):
+    """
+    Return the mongo container name for the given user_name
+    """
+    return user_name+'_mongo'
+
+def knowrob_container_name(user_name):
+    """
+    Return the knowrob container name for the given user_name
+    """
+    return user_name+'_knowrob'
+
+def user_network_name(user_name):
+    """
+    Return the network name for the given user_name
+    """
+    return user_name+'_network'
 
 def absolute_userpath(relative):
     """
