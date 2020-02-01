@@ -70,12 +70,6 @@ class DockerBridge(pyjsonrpc.HttpRequestHandler):
         timeout.resetTimeout(user_container_name, 600)
 
     @pyjsonrpc.rpcmethod
-    def get_container_log(self, user_container_name):
-        check_containername(user_container_name, 'user_container_name')
-
-        return dockermanager.get_container_log(user_container_name)
-
-    @pyjsonrpc.rpcmethod
     def files_fromcontainer(self, user_container_name, sourcefile):
         check_containername(user_container_name, 'user_container_name')
         check_pathname(sourcefile, 'sourcefile')

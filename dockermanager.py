@@ -143,19 +143,6 @@ class DockerManager(object):
         except Exception, e:
             sysout("Error in get_container_env: " + str(e.message) + "\n")
             return 'error'
-    
-    def get_container_log(self, container_name):
-        try:
-            logger = self.__client.logs(container_name, stdout=True, stderr=True, stream=False, timestamps=False)
-            logstr = ""
-            # TODO: limit number of lines!
-            # It seems for a long living container the log gets to huge.
-            for line in logger:
-                logstr += line
-            return logstr
-        except (APIError, DockerException), e:
-            sysout("Error in get_container_log: " + str(e.message))
-            return 'error'
 
     def container_started(self, container_name, base_image_name=None):
         try:
