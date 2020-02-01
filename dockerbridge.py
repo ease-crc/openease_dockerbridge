@@ -58,10 +58,6 @@ class DockerBridge(pyjsonrpc.HttpRequestHandler):
         check_containername(user_container_name, 'user_container_name')
 
         return dockermanager.get_container_ip(user_container_name)
-    
-    @pyjsonrpc.rpcmethod
-    def get_container_env(self, user_container_name, key):
-        return dockermanager.get_container_env(user_container_name, key)
 
     @pyjsonrpc.rpcmethod
     def refresh(self, user_container_name):

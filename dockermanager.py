@@ -133,17 +133,6 @@ class DockerManager(object):
             named_images.append(tag0.split(':')[0])
         return named_images
 
-    def get_container_env(self, container_name, key):
-        try:
-            inspect = self.__client.inspect_container(container_name)
-            env_list = inspect['Config']['Env']
-            # Map to list of key-value pairs and convert to dict
-            env = dict(map(lambda x: x.split("="), env_list))
-            return env[key]
-        except Exception, e:
-            sysout("Error in get_container_env: " + str(e.message) + "\n")
-            return 'error'
-
     def container_started(self, container_name, base_image_name=None):
         try:
             cont = self.__get_container(container_name, self.__client.containers())
