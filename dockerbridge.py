@@ -174,7 +174,7 @@ dockermanager = DockerManager()
 filemanager = FileManager()
 
 sysout("Starting watchdog")
-timeout = TimeoutManager(5, dockermanager.stop_container)
+timeout = TimeoutManager(5, dockermanager.stop_user_container)
 timeout.start()
 
 http_server = pyjsonrpc.ThreadingHttpServer(
