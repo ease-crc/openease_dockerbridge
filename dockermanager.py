@@ -103,8 +103,6 @@ class DockerManager(object):
                "VIRTUAL_PORT": '9090',
                "ROS_PACKAGE_PATH": ":".join([
                    "/home/ros/src",
-                   #"/opt/ros/"+ros_distribution+"/share",
-                   #"/opt/ros/"+ros_distribution+"/stacks",
                    user_home_dir
                 ])
         }
@@ -130,7 +128,6 @@ class DockerManager(object):
                                        name=knowrob_container,
                                        cpu_shares=cpu_shares,
                                        volumes=['/neem'],
-                                       #entrypoint=['/opt/ros/'+ros_distribution+'/bin/roslaunch', 'knowrob_roslog_launch', 'knowrob_ease.launch'],
                                        host_config=host_config)
         self.__client.connect_container_to_network(knowrob_container, network_name)
         ##
