@@ -30,9 +30,9 @@ class DockerBridge(pyjsonrpc.HttpRequestHandler):
         check_containername(user_name, 'container_name')
         check_containername(neem_group, 'container_name')
         check_containername(neem_name, 'container_name')
-        check_containername(neem_version, 'container_name')
         check_containername(knowrob_image, 'container_name')
-        check_containername(knowrob_version, 'container_name')
+        #check_containername(neem_version, 'container_name')
+        #check_containername(knowrob_version, 'container_name')
         dockermanager.start_user_container(user_name, neem_group, neem_name, neem_version, knowrob_image, knowrob_version)
         timeout.setTimeout(user_name, 600)
 

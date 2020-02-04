@@ -32,17 +32,18 @@ class DockerManager(object):
             self.__stop_user_container__(user_name, all_containers)
             # make sure the image is locally available
             # TODO: manage knowrob images, delete old ones that were not used for a while
-            self.__client.pull(KNOWROB_IMAGE_PREFIX+'/'+knowrob_image,
-                               tag=knowrob_version)
+            # FIXME: this overwrites any local image with this tag
+            #self.__client.pull(KNOWROB_IMAGE_PREFIX+'/'+knowrob_image,
+            #                   tag=knowrob_version)
             # Host directory where the NEEM is located.
             # This directory is mounted as volume into the dockerbridge container.
-            neem_dir_local = neem_group+'/'+neem_name+':'+neem_version
+            neem_dir_local = neem_group+'/'+neem_name+'/'+neem_version
             neem_dir = os.path.join(NEEM_DIR, neem_dir_local)
             # create user container
             self.__create_user_data_container__(user_name,all_containers)
             self.__create_user_network__(user_name)
             self.__create_mongo_container__(user_name,neem_dir)
-            self.__create_knowrob_container__(user_name,neem_dir)
+            self.__create_knowrob_container__(user_name,neem_dir,knowrob_image,knowrob_version)
         except Exception, e:
             sysout("Error in start_user_container: " + str(e.message))
             traceback.print_exc()
@@ -59,7 +60,8 @@ class DockerManager(object):
 
     def __create_user_network__(self, user_name):
         network_name = user_network_name(user_name)
-        if self.__client.networks(names=[network_name]) is []:
+        if self.__client.networks(names=[network_name]) == []:
+            sysout("Creating "+network_name+" network.")
             self.__client.create_network(name=network_name)
 
     def __create_user_data_container__(self, user_name, all_containers):
@@ -92,7 +94,7 @@ class DockerManager(object):
         self.__client.connect_container_to_network(container_name, network_name)
         self.__client.start(container_name)
 
-    def __create_knowrob_container__(self, user_name, neem_dir):
+    def __create_knowrob_container__(self, user_name, neem_dir, knowrob_image, knowrob_version):
         knowrob_container = knowrob_container_name(user_name)
         mongo_container = mongo_container_name(user_name)
         network_name = user_network_name(user_name)
@@ -101,10 +103,8 @@ class DockerManager(object):
         sysout("Creating user container " + knowrob_container)
         env = {"VIRTUAL_HOST": knowrob_container,
                "VIRTUAL_PORT": '9090',
-               "ROS_PACKAGE_PATH": ":".join([
-                   "/home/ros/src",
-                   user_home_dir
-                ])
+               "MONGO_PORT_27017_TCP_ADDR": mongo_container,
+               "MONGO_PORT_27017_TCP_PORT": '27017'
         }
         # TODO: make this configurable based on the roles of the user
         limit_resources = True
@@ -121,7 +121,8 @@ class DockerManager(object):
             mem_limit=mem_limit, 
             memswap_limit=mem_limit*4,
         )
-        self.__client.create_container(application_image,
+        # TODO: handle version tag
+        self.__client.create_container(KNOWROB_IMAGE_PREFIX+"/"+knowrob_image,
                                        detach=True,
                                        tty=True,
                                        environment=env,
@@ -132,7 +133,7 @@ class DockerManager(object):
         self.__client.connect_container_to_network(knowrob_container, network_name)
         ##
         sysout("Starting user container " + knowrob_container)
-        volumes_from = [data_container_name(knowrob_container)]
+        volumes_from = [data_container_name(user_name)]
         self.__client.start(knowrob_container,
                             port_bindings={9090: ('127.0.0.1',)},
                             volumes_from=volumes_from)
@@ -141,7 +142,7 @@ class DockerManager(object):
         try:
             self.__stop_user_container__(user_name, self.__client.containers(all=True))
         except (APIError, DockerException), e:
-            sysout("Error in stop_container: " + str(e.message))
+            sysout("Error in stop_user_container: " + str(e.message))
     
     def __stop_user_container__(self, user_name, all_containers):
         self.__stop_container__(knowrob_container_name(user_name), all_containers)
