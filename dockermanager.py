@@ -37,7 +37,7 @@ class DockerManager(object):
             #                   tag=knowrob_version)
             # Host directory where the NEEM is located.
             # This directory is mounted as volume into the dockerbridge container.
-            neem_dir_local = neem_group+'/'+neem_name+'/'+neem_version
+            neem_dir_local = neem_group+'/'+neem_name #+'/'+neem_version
             neem_dir = os.path.join(NEEM_DIR, neem_dir_local)
             # create user container
             self.__create_user_data_container__(user_name,all_containers)
@@ -83,7 +83,7 @@ class DockerManager(object):
         sysout("Creating "+container_name+" container.")
         #
         host_config = self.__client.create_host_config(
-            binds={ os.path.join(neem_dir,'mongo'): {'bind': '/data/db'} }
+            binds={ os.path.join(neem_dir,'neem-experience'): {'bind': '/data/db'} }
         )
         self.__client.create_container('mongo',
                                        detach=True,
