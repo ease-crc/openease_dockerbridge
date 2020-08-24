@@ -57,10 +57,8 @@ class DockerManager(object):
         return False
 
     def __create_user_network__(self, user_name):
-        sysout("Error 2")
         network_name = user_network_name(user_name)
         if self.__client.networks(names=[network_name]) == []:
-            sysout("Error 3")
             sysout("Creating "+network_name+" network.")
             self.__client.create_network(name=network_name)
 
