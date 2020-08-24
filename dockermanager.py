@@ -37,13 +37,11 @@ class DockerManager(object):
             #                   tag=knowrob_version)
             # Host directory where the NEEM is located.
             # This directory is mounted as volume into the dockerbridge container.
-            neem_dir_local = neem_group+'/'+neem_name #+'/'+neem_version
-            neem_dir = os.path.join(NEEM_DIR, neem_dir_local)
+            # neem_dir_local = neem_group+'/'+neem_name #+'/'+neem_version
             # create user container
             self.__create_user_data_container__(user_name,all_containers)
             self.__create_user_network__(user_name)
-            self.__create_mongo_container__(user_name,neem_dir)
-            self.__create_knowrob_container__(user_name,neem_dir,knowrob_image,knowrob_version)
+            self.__create_knowrob_container__(user_name,knowrob_image,knowrob_version)
         except Exception, e:
             sysout("Error in start_user_container: " + str(e.message))
             traceback.print_exc()
@@ -59,8 +57,10 @@ class DockerManager(object):
         return False
 
     def __create_user_network__(self, user_name):
+        sysout("Error 2")
         network_name = user_network_name(user_name)
         if self.__client.networks(names=[network_name]) == []:
+            sysout("Error 3")
             sysout("Creating "+network_name+" network.")
             self.__client.create_network(name=network_name)
 
@@ -77,34 +77,14 @@ class DockerManager(object):
             # TODO: start needed for volume? will exit right away, or not?
             self.__client.start(user_data_container)
 
-    def __create_mongo_container__(self, user_name, neem_dir):
-        container_name = mongo_container_name(user_name)
-        network_name = user_network_name(user_name)
-        sysout("Creating "+container_name+" container.")
-        #
-        host_config = self.__client.create_host_config(
-            binds={ os.path.join(neem_dir,'neem-experience'): {'bind': '/data/db'} }
-        )
-        self.__client.create_container('mongo',
-                                       detach=True,
-                                       tty=True,
-                                       name=container_name,
-                                       host_config=host_config,
-                                       volumes=['/data/db'])
-        self.__client.connect_container_to_network(container_name, network_name)
-        self.__client.start(container_name)
-
-    def __create_knowrob_container__(self, user_name, neem_dir, knowrob_image, knowrob_version):
+    def __create_knowrob_container__(self, user_name, knowrob_image, knowrob_version):
         knowrob_container = knowrob_container_name(user_name)
-        mongo_container = mongo_container_name(user_name)
         network_name = user_network_name(user_name)
         user_home_dir = absolute_userpath('')
 
         sysout("Creating user container " + knowrob_container)
         env = {"VIRTUAL_HOST": knowrob_container,
-               "VIRTUAL_PORT": '9090',
-               "MONGO_PORT_27017_TCP_ADDR": mongo_container,
-               "MONGO_PORT_27017_TCP_PORT": '27017'
+               "VIRTUAL_PORT": '9090'
         }
         # TODO: make this configurable based on the roles of the user
         limit_resources = True
@@ -117,18 +97,16 @@ class DockerManager(object):
             mem_limit = 0
             cpu_shares = 1024  # Default value
         host_config = self.__client.create_host_config(
-            binds={ neem_dir: {'bind': '/neem', 'mode': 'ro'} },
             mem_limit=mem_limit, 
             memswap_limit=mem_limit*4,
         )
         # TODO: handle version tag
-        self.__client.create_container(KNOWROB_IMAGE_PREFIX+"/"+knowrob_image,
+        self.__client.create_container("openease/knowrob",
                                        detach=True,
                                        tty=True,
                                        environment=env,
                                        name=knowrob_container,
                                        cpu_shares=cpu_shares,
-                                       volumes=['/neem'],
                                        host_config=host_config)
         self.__client.connect_container_to_network(knowrob_container, network_name)
         ##
