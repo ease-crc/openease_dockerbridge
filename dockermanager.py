@@ -24,7 +24,7 @@ class DockerManager(object):
         self.__client.pull(USER_DATA_IMAGE)
     
     def start_user_container(self, user_name,
-                             neem_group, neem_name, neem_version,
+                             neem_id, neem_version,
                              knowrob_image, knowrob_version):
         try:
             all_containers = self.__client.containers(all=True)
@@ -41,7 +41,7 @@ class DockerManager(object):
             # create user container
             self.__create_user_data_container__(user_name,all_containers)
             self.__create_user_network__(user_name)
-            self.__create_knowrob_container__(user_name,knowrob_image,knowrob_version)
+            self.__create_knowrob_container__(user_name,neem_id,knowrob_image,knowrob_version)
         except Exception, e:
             sysout("Error in start_user_container: " + str(e.message))
             traceback.print_exc()
@@ -75,7 +75,7 @@ class DockerManager(object):
             # TODO: start needed for volume? will exit right away, or not?
             self.__client.start(user_data_container)
 
-    def __create_knowrob_container__(self, user_name, knowrob_image, knowrob_version):
+    def __create_knowrob_container__(self, user_name, neem_id, knowrob_image, knowrob_version):
         knowrob_container = knowrob_container_name(user_name)
         network_name = user_network_name(user_name)
         user_home_dir = absolute_userpath('')

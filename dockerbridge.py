@@ -26,14 +26,14 @@ def to_deb64_stream(data):
 class DockerBridge(pyjsonrpc.HttpRequestHandler):
 
     @pyjsonrpc.rpcmethod
-    def start_user_container(self, user_name, neem_group, neem_name, neem_version='latest', knowrob_image='knowrob', knowrob_version='latest'):
+    def start_user_container(self, user_name, neem_id, neem_version='latest', knowrob_image='knowrob', knowrob_version='latest'):
         check_containername(user_name, 'container_name')
         # check_containername(neem_group, 'container_name')
-        check_containername(neem_name, 'container_name')
+        check_containername(neem_id, 'container_name')
         check_containername(knowrob_image, 'container_name')
         #check_containername(neem_version, 'container_name')
         #check_containername(knowrob_version, 'container_name')
-        dockermanager.start_user_container(user_name, neem_group, neem_name, neem_version, knowrob_image, knowrob_version)
+        dockermanager.start_user_container(user_name, neem_id, neem_version, knowrob_image, knowrob_version)
         timeout.setTimeout(user_name, 600)
 
     @pyjsonrpc.rpcmethod
