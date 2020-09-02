@@ -83,11 +83,11 @@ class DockerManager(object):
         sysout("Creating user container " + knowrob_container)
         env = {"VIRTUAL_HOST": knowrob_container,
                "VIRTUAL_PORT": '9090',
-               "MONGO_USERNAME": os.environ['NEEMHUB_MONGO_USER'],
-               "MONGO_PASSWORD": os.environ['NEEMHUB_MONGO_PASS'],
-               "MONGO_DATABASE": os.environ['NEEMHUB_MONGO_DB'],
-               "MONGO_HOST": os.environ['NEEMHUB_MONGO_HOST'],
-               "MONGO_PORT": os.environ['NEEMHUB_MONGO_PORT']
+               "KNOWROB_MONGO_USER": os.environ['KNOWROB_MONGO_USER'],
+               "KNOWROB_MONGO_PASS": os.environ['KNOWROB_MONGO_PASS'],
+               "KNOWROB_MONGO_DB": os.environ['KNOWROB_MONGO_DB'],
+               "KNOWROB_MONGO_HOST": os.environ['KNOWROB_MONGO_HOST'],
+               "KNOWROB_MONGO_PORT": os.environ['KNOWROB_MONGO_PORT']
         }
         # TODO: make this configurable based on the roles of the user
         limit_resources = True
