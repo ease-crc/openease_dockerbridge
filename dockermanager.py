@@ -21,7 +21,11 @@ class DockerManager(object):
         self.__client = docker.Client(base_url='unix://var/run/docker.sock',
                                       version='1.22',
                                       timeout=60)
-        self.__client.pull(USER_DATA_IMAGE)
+        try:
+            self.__client.pull(USER_DATA_IMAGE)
+        except Exception, e:
+            sysout("Error in DockerManager: " + str(e.message))
+            traceback.print_exc()
     
     def start_user_container(self, user_name,
                              neem_id, neem_version,
