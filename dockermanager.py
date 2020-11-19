@@ -14,7 +14,6 @@ from utils import sysout
 USER_DATA_IMAGE='knowrob/user_data'
 # TODO: make configurable
 KNOWROB_IMAGE_PREFIX='openease'
-NEEM_DIR=os.environ['NEEM_DIR']
 
 class DockerManager(object):
     def __init__(self):
