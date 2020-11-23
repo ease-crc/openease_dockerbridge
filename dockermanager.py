@@ -105,9 +105,15 @@ class DockerManager(object):
         else:
             mem_limit = 0
             cpu_shares = 1024  # Default value
+        #
+        volume_bindings={
+          'openease_rules': {'bind': '/openease_ws/openease_rules', 'mode': 'ro'}
+        }
+        #
         host_config = self.__client.create_host_config(
             mem_limit=mem_limit, 
             memswap_limit=mem_limit*4,
+            binds=volume_bindings
         )
         # TODO: handle version tag
         self.__client.create_container("openease/knowrob",
