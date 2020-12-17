@@ -92,7 +92,8 @@ class DockerManager(object):
                "KNOWROB_MONGO_PASS": parsed_json_neemHubSettings['MONGO_PASS'],
                "KNOWROB_MONGO_DB": parsed_json_neemHubSettings['MONGO_DB'],
                "KNOWROB_MONGO_HOST": parsed_json_neemHubSettings['MONGO_HOST'],
-               "KNOWROB_MONGO_PORT": parsed_json_neemHubSettings['MONGO_PORT']
+               "KNOWROB_MONGO_PORT": parsed_json_neemHubSettings['MONGO_PORT'],
+               "KNOWROB_URDF_SERVER": parsed_json_neemHubSettings['KNOWROB_URDF_SERVER']
         }
 
         # TODO: make this configurable based on the roles of the user
