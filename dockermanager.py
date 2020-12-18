@@ -88,12 +88,12 @@ class DockerManager(object):
 
         env = {"VIRTUAL_HOST": knowrob_container,
                "VIRTUAL_PORT": '9090',
-               "KNOWROB_MONGO_USER": parsed_json_neemHubSettings['MONGO_USER'],
-               "KNOWROB_MONGO_PASS": parsed_json_neemHubSettings['MONGO_PASS'],
-               "KNOWROB_MONGO_DB": parsed_json_neemHubSettings['MONGO_DB'],
-               "KNOWROB_MONGO_HOST": parsed_json_neemHubSettings['MONGO_HOST'],
-               "KNOWROB_MONGO_PORT": parsed_json_neemHubSettings['MONGO_PORT'],
-               "KNOWROB_URDF_SERVER": parsed_json_neemHubSettings['KNOWROB_URDF_SERVER']
+               "KNOWROB_MONGO_USER": parsed_json_neemHubSettings['mongo_user'],
+               "KNOWROB_MONGO_PASS": parsed_json_neemHubSettings['mongo_pass'],
+               "KNOWROB_MONGO_DB": parsed_json_neemHubSettings['mongo_db'],
+               "KNOWROB_MONGO_HOST": parsed_json_neemHubSettings['mongo_host'],
+               "KNOWROB_MONGO_PORT": parsed_json_neemHubSettings['mongo_port'],
+               "KNOWROB_URDF_SERVER": parsed_json_neemHubSettings['urdf_server']
         }
 
         # TODO: make this configurable based on the roles of the user
