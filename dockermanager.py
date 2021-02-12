@@ -63,6 +63,12 @@ class DockerManager(object):
             sysout("Creating "+network_name+" network.")
             self.__client.create_network(name=network_name)
 
+    def __remove_user_network__(self, user_name):
+        network_name = user_network_name(user_name)
+        if not (self.__client.networks(names=[network_name]) == []):
+            sysout("Remove "+network_name+" network.")
+            self.__client.remove_network(network_name)
+
     def __create_user_data_container__(self, user_name, all_containers):
         user_data_container = data_container_name(user_name)
         if self.__get_container(user_data_container, all_containers) is None:
@@ -139,7 +145,7 @@ class DockerManager(object):
     def __stop_user_container__(self, user_name, all_containers):
         self.__stop_container__(knowrob_container_name(user_name), all_containers)
         self.__stop_container__(mongo_container_name(user_name), all_containers)
-        # TODO: destroy user network
+        self.__remove_user_network__(user_name)
 
     def __stop_container__(self, container_name, all_containers):
         # check if containers exist:
